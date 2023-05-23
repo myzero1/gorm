@@ -126,9 +126,13 @@ func (p *processor) Execute(db *DB) *DB {
 		}
 	}
 
+	Z1ToDryRun(db, stmt.Model)
+
 	for _, f := range p.fns {
 		f(db)
 	}
+
+	Z1ToMongo(db, stmt.Model, stmt)
 
 	if stmt.SQL.Len() > 0 {
 		db.Logger.Trace(stmt.Context, curTime, func() (string, int64) {
