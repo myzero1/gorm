@@ -126,9 +126,14 @@ func (p *processor) Execute(db *DB) *DB {
 		}
 	}
 
+	isMongo := Z1ParsingModel(stmt.Model)
+	Z1ToDryRun(db, isMongo)
+
 	for _, f := range p.fns {
 		f(db)
 	}
+
+	Z1ToMongo(db, stmt.Model, stmt, isMongo)
 
 	db.Logger.Trace(stmt.Context, curTime, func() (string, int64) {
 		return db.Dialector.Explain(stmt.SQL.String(), stmt.Vars...), db.RowsAffected
