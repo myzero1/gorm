@@ -126,7 +126,7 @@ func (p *processor) Execute(db *DB) *DB {
 		}
 	}
 
-	isMongo := Z1ParsingModel(stmt.Model)
+	isMongo := Z1ParsingModel(db, stmt.Model)
 	Z1ToDryRun(db, isMongo)
 
 	for _, f := range p.fns {

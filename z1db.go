@@ -19,6 +19,11 @@ func Z1ToDryRun(db *DB, modelIsMongo bool) {
 }
 
 func Z1ToMongo(db *DB, model interface{}, stmt *Statement, modelIsMongo bool) {
+	// {
+	// 	sql := db.Dialector.Explain(stmt.SQL.String(), stmt.Vars...)
+	// 	log.Println(`------sql--1--`, sql)
+	// }
+
 	if modelIsMongo {
 		sql := db.Dialector.Explain(stmt.SQL.String(), stmt.Vars...)
 		isCount := true
@@ -80,7 +85,11 @@ func Z1ToMongo(db *DB, model interface{}, stmt *Statement, modelIsMongo bool) {
 	}
 }
 
-func Z1ParsingModel(model interface{}) (isMongo bool) {
+func Z1ParsingModel(db *DB, model interface{}) (isMongo bool) {
+	if db.DryRun {
+		return false
+	}
+
 	if model != nil {
 		m, ok := model.(Z1Modeli)
 		if ok && m.DBType() == `mongo` {
@@ -110,11 +119,18 @@ func Z1ParsingModelOld(model interface{}) (isMongo, isSlice bool) {
 }
 
 type Z1Model struct {
-	Model
-	ID        int64              `gorm:"column:id;primarykey" json:"id" bson:"id,omitempty"`                             // sonyflake machineid max 65536 2^16
-	CreatedAt int64              `gorm:"column:created_at;autoCreateTime" json:"created_at" bson:"created_at,omitempty"` // 创建时间戳
-	UpdatedAt int64              `gorm:"column:updated_at;autoUpdateTime" json:"updated_at" bson:"updated_at,omitempty"` // 更新时间戳
-	ID_       primitive.ObjectID `gorm:"-:all" json:"_id" bson:"_id,omitempty"`                                          // for mongodb _id 这个字段是标识，是否使用MongoDB的
+	// https://gorm.io/docs/delete.html#Soft-Delete
+	// https://blog.csdn.net/qq_41554118/article/details/125645663
+	// https://blog.csdn.net/weixin_44718305/article/details/128207602
+
+	// Model
+
+	ID        int64     `gorm:"column:id;primarykey" json:"id" bson:"id"`                                       // 默认自增，可以人为设置sonyflake machineid max 65536 2^16
+	CreatedAt int64     `gorm:"column:created_at;not null;default:0" json:"created_at" bson:"created_at"`       // 创建时间戳
+	UpdatedAt int64     `gorm:"column:updated_at;not null;default:0" json:"updated_at" bson:"updated_at"`       // 更新时间戳
+	DeletedAt DeletedAt `gorm:"column:deleted_at;index;not null;default:0" json:"deleted_at" bson:"deleted_at"` // 删除时间戳 已经改为了int64
+
+	ID_ primitive.ObjectID `gorm:"-:all" json:"_id" bson:"_id,omitempty"` // for mongodb _id 这个字段是标识，是否使用MongoDB的
 }
 
 type Z1Modeli interface {
