@@ -125,10 +125,10 @@ type Z1Model struct {
 
 	// Model
 
-	ID        int64     `gorm:"column:id;primarykey" json:"id" bson:"id"`                             // 默认自增，可以人为设置sonyflake machineid max 65536 2^16
-	CreatedAt int64     `gorm:"column:created_at;not null" json:"created_at" bson:"created_at"`       // 创建时间戳
-	UpdatedAt int64     `gorm:"column:updated_at;not null" json:"updated_at" bson:"updated_at"`       // 更新时间戳
-	DeletedAt DeletedAt `gorm:"column:deleted_at;index;not null" json:"deleted_at" bson:"deleted_at"` // 删除时间戳 已经改为了int64
+	ID        int64     `gorm:"column:id;primarykey" json:"id" bson:"id"`                                       // 默认自增，可以人为设置sonyflake machineid max 65536 2^16
+	CreatedAt int64     `gorm:"column:created_at;not null" json:"created_at" bson:"created_at"`                 // 创建时间戳
+	UpdatedAt int64     `gorm:"column:updated_at;not null" json:"updated_at" bson:"updated_at"`                 // 更新时间戳
+	DeletedAt DeletedAt `gorm:"column:deleted_at;index;not null;default:0" json:"deleted_at" bson:"deleted_at"` // 删除时间戳 已经改为了int64
 
 	ID_ primitive.ObjectID `gorm:"-:all" json:"_id" bson:"_id"` // for mongodb _id 这个字段是标识，是否使用MongoDB的
 }
