@@ -130,7 +130,7 @@ type Z1Model struct {
 	UpdatedAt int64     `gorm:"column:updated_at;not null" json:"updated_at" bson:"updated_at"`       // 更新时间戳
 	DeletedAt DeletedAt `gorm:"column:deleted_at;index;not null" json:"deleted_at" bson:"deleted_at"` // 删除时间戳 已经改为了int64
 
-	ID_ primitive.ObjectID `gorm:"-:all" json:"_id" bson:"_id,omitempty"` // for mongodb _id 这个字段是标识，是否使用MongoDB的
+	ID_ primitive.ObjectID `gorm:"-:all" json:"_id" bson:"_id"` // for mongodb _id 这个字段是标识，是否使用MongoDB的
 }
 
 type Z1Modeli interface {
