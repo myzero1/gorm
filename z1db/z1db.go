@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"strings"
 
+	"gorm.io/gorm"
 	"gorm.io/gorm/z1db/soft_delete"
 
 	"gitee.com/myzero1/gotool/z1mongo"
@@ -11,7 +12,7 @@ import (
 	"gopkg.in/mgo.v2/bson"
 )
 
-func Z1ToDryRun(db *DB, modelIsMongo bool) {
+func Z1ToDryRun(db *gorm.DB, modelIsMongo bool) {
 	// callbacks.go
 	// for _, f := range p.fns
 
@@ -20,7 +21,7 @@ func Z1ToDryRun(db *DB, modelIsMongo bool) {
 	}
 }
 
-func Z1ToMongo(db *DB, model interface{}, stmt *Statement, modelIsMongo bool) {
+func Z1ToMongo(db *gorm.DB, model interface{}, stmt *gorm.Statement, modelIsMongo bool) {
 	if modelIsMongo {
 		sql := db.Dialector.Explain(stmt.SQL.String(), stmt.Vars...)
 		isCount := true
@@ -111,7 +112,7 @@ func Z1ParsingModelOld(model interface{}) (isMongo, isSlice bool) {
 	return
 }
 
-// Model a basic GoLang struct which includes the following fields: ID, CreatedAt, UpdatedAt, DeletedAt
+// Z1Model a basic GoLang struct which includes the following fields: ID, CreatedAt, UpdatedAt, DeletedAt
 // It may be embedded into your model or you may build your own model without it
 //
 //	type User struct {
@@ -122,12 +123,7 @@ type Z1Model struct {
 	// https://blog.csdn.net/qq_41554118/article/details/125645663
 	// https://blog.csdn.net/weixin_44718305/article/details/128207602
 
-	Model
-
-	// ID        uint `gorm:"primarykey"`
-	// CreatedAt time.Time
-	// UpdatedAt time.Time
-	// DeletedAt DeletedAt `gorm:"index"`
+	// gorm.Model
 
 	ID        int64                 `gorm:"column:id;primarykey" json:"id" bson:"id"`                             // sonyflake machineid max 65536 2^16
 	CreatedAt int64                 `gorm:"column:created_at;autoCreateTime" json:"created_at" bson:"created_at"` // 创建时间戳
@@ -140,6 +136,11 @@ type Z1Modeli interface {
 	DBType() string
 }
 
-func (m *Z1Model) DBType() string {
-	return `mysql` // for mongo must return mongo
+func (m *Z1Model) DBType(dbType ...string) string {
+	if len(dbType) > 0 {
+		return dbType[0]
+	} else {
+		// return mongo // for mongo must return mongo
+		return `mysql`
+	}
 }
