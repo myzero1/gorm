@@ -1,48 +1,16 @@
 package gorm
 
+// go get github.com/go-gorm/soft_delete@v1.0.3
+
 import (
-	"database/sql"
-	"database/sql/driver"
-	"encoding/json"
 	"reflect"
 
 	"gorm.io/gorm/clause"
 	"gorm.io/gorm/schema"
 )
 
-type DeletedAt sql.NullTime
-
-// Scan implements the Scanner interface.
-func (n *DeletedAt) Scan(value interface{}) error {
-	return (*sql.NullTime)(n).Scan(value)
-}
-
-// Value implements the driver Valuer interface.
-func (n DeletedAt) Value() (driver.Value, error) {
-	if !n.Valid {
-		return nil, nil
-	}
-	return n.Time, nil
-}
-
-func (n DeletedAt) MarshalJSON() ([]byte, error) {
-	if n.Valid {
-		return json.Marshal(n.Time)
-	}
-	return json.Marshal(nil)
-}
-
-func (n *DeletedAt) UnmarshalJSON(b []byte) error {
-	if string(b) == "null" {
-		n.Valid = false
-		return nil
-	}
-	err := json.Unmarshal(b, &n.Time)
-	if err == nil {
-		n.Valid = true
-	}
-	return err
-}
+// type DeletedAt uint
+type DeletedAt int64
 
 func (DeletedAt) QueryClauses(f *schema.Field) []clause.Interface {
 	return []clause.Interface{SoftDeleteQueryClause{Field: f}}
@@ -77,11 +45,43 @@ func (sd SoftDeleteQueryClause) ModifyStatement(stmt *Statement) {
 			}
 		}
 
-		stmt.AddClause(clause.Where{Exprs: []clause.Expression{
-			clause.Eq{Column: clause.Column{Table: clause.CurrentTable, Name: sd.Field.DBName}, Value: nil},
-		}})
+		if sd.Field.DefaultValue == "null" {
+			stmt.AddClause(clause.Where{Exprs: []clause.Expression{
+				clause.Eq{Column: clause.Column{Table: clause.CurrentTable, Name: sd.Field.DBName}, Value: nil},
+			}})
+		} else {
+			stmt.AddClause(clause.Where{Exprs: []clause.Expression{
+				clause.Eq{Column: clause.Column{Table: clause.CurrentTable, Name: sd.Field.DBName}, Value: 0},
+			}})
+		}
 		stmt.Clauses["soft_delete_enabled"] = clause.Clause{}
 	}
+}
+
+func (DeletedAt) DeleteClauses(f *schema.Field) []clause.Interface {
+	settings := schema.ParseTagSetting(f.TagSettings["SOFTDELETE"], ",")
+	softDeleteClause := SoftDeleteDeleteClause{
+		Field:    f,
+		Flag:     settings["FLAG"] != "",
+		TimeType: schema.UnixSecond,
+	}
+
+	// flag is much more priority
+	if !softDeleteClause.Flag {
+		if settings["NANO"] != "" {
+			softDeleteClause.TimeType = schema.UnixNanosecond
+		} else if settings["MILLI"] != "" {
+			softDeleteClause.TimeType = schema.UnixMillisecond
+		} else {
+			softDeleteClause.TimeType = schema.UnixSecond
+		}
+	}
+
+	if v := settings["DELETEDATFIELD"]; v != "" { // DeletedAtField
+		softDeleteClause.DeleteAtField = f.Schema.LookUpField(v)
+	}
+
+	return []clause.Interface{softDeleteClause}
 }
 
 func (DeletedAt) UpdateClauses(f *schema.Field) []clause.Interface {
@@ -110,12 +110,11 @@ func (sd SoftDeleteUpdateClause) ModifyStatement(stmt *Statement) {
 	}
 }
 
-func (DeletedAt) DeleteClauses(f *schema.Field) []clause.Interface {
-	return []clause.Interface{SoftDeleteDeleteClause{Field: f}}
-}
-
 type SoftDeleteDeleteClause struct {
-	Field *schema.Field
+	Field         *schema.Field
+	Flag          bool
+	TimeType      schema.TimeType
+	DeleteAtField *schema.Field
 }
 
 func (sd SoftDeleteDeleteClause) Name() string {
@@ -131,8 +130,28 @@ func (sd SoftDeleteDeleteClause) MergeClause(*clause.Clause) {
 func (sd SoftDeleteDeleteClause) ModifyStatement(stmt *Statement) {
 	if stmt.SQL.String() == "" {
 		curTime := stmt.DB.NowFunc()
-		stmt.AddClause(clause.Set{{Column: clause.Column{Name: sd.Field.DBName}, Value: curTime}})
-		stmt.SetColumn(sd.Field.DBName, curTime, true)
+		if sd.Flag {
+			set := clause.Set{{Column: clause.Column{Name: sd.Field.DBName}, Value: 1}}
+			stmt.SetColumn(sd.Field.DBName, 1, true)
+
+			if sd.DeleteAtField != nil {
+				set = append(set, clause.Assignment{Column: clause.Column{Name: sd.DeleteAtField.DBName}, Value: curTime.Unix()})
+				stmt.SetColumn(sd.DeleteAtField.DBName, curTime, true)
+			}
+
+			stmt.AddClause(set)
+		} else {
+			var curUnix int64 = 0
+			if sd.TimeType == schema.UnixNanosecond {
+				curUnix = curTime.UnixNano()
+			} else if sd.TimeType == schema.UnixMillisecond {
+				curUnix = curTime.UnixNano() / 1e6
+			} else {
+				curUnix = curTime.Unix()
+			}
+			stmt.AddClause(clause.Set{{Column: clause.Column{Name: sd.Field.DBName}, Value: curUnix}})
+			stmt.SetColumn(sd.Field.DBName, curUnix, true)
+		}
 
 		if stmt.Schema != nil {
 			_, queryValues := schema.GetIdentityFieldValuesMap(stmt.ReflectValue, stmt.Schema.PrimaryFields)
@@ -155,7 +174,7 @@ func (sd SoftDeleteDeleteClause) ModifyStatement(stmt *Statement) {
 		if _, ok := stmt.Clauses["WHERE"]; !stmt.DB.AllowGlobalUpdate && !ok {
 			stmt.DB.AddError(ErrMissingWhereClause)
 		} else {
-			SoftDeleteQueryClause(sd).ModifyStatement(stmt)
+			SoftDeleteQueryClause{Field: sd.Field}.ModifyStatement(stmt)
 		}
 
 		stmt.AddClauseIfNotExists(clause.Update{})
