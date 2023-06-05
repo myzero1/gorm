@@ -26,27 +26,26 @@ func Z1ToMongo(db *DB, model interface{}, stmt *Statement, modelIsMongo bool) {
 
 	if modelIsMongo {
 		sql := db.Dialector.Explain(stmt.SQL.String(), stmt.Vars...)
-		isCount := true
-		isMany := true
+		isCount := false
+		isMany := false
 
 		// log.Println(`------sql--1--`, sql)
 
 		if strings.HasPrefix(sql, `SELECT `) {
-			if !strings.Contains(sql, `count(`) {
-				isCount = false
+			if strings.Contains(sql, `count(`) {
+				isCount = true
 			}
 
-			{
-				b, err := json.Marshal(stmt.Dest)
-				if err != nil {
-					db.Error = err
-					return
-				}
-				destStr := string(b)
-				if !strings.HasPrefix(destStr, `[{"`) {
-					isMany = false
-					sql = sql + ` LIMIT 1`
-				}
+			b, err := json.Marshal(stmt.Dest)
+			if err != nil {
+				db.Error = err
+				return
+			}
+			destStr := string(b)
+			if strings.HasPrefix(destStr, `[{"`) {
+				isMany = true
+			} else {
+				sql = sql + ` LIMIT 1`
 			}
 		}
 
