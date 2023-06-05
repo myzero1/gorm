@@ -19,6 +19,10 @@ func Z1ToDryRun(db *DB, modelIsMongo bool) {
 }
 
 func Z1ToMongo(db *DB, model interface{}, stmt *Statement, modelIsMongo bool) {
+	defer func() {
+		db.DryRun = false
+	}()
+
 	// {
 	// 	sql := db.Dialector.Explain(stmt.SQL.String(), stmt.Vars...)
 	// 	log.Println(`------sql--1--`, sql)
@@ -81,7 +85,7 @@ func Z1ToMongo(db *DB, model interface{}, stmt *Statement, modelIsMongo bool) {
 						db.Error = err
 						return
 					}
-					err = bson.Unmarshal(b, model)
+					err = bson.Unmarshal(b, stmt.Dest)
 					if err != nil {
 						db.Error = err
 						return
@@ -89,8 +93,6 @@ func Z1ToMongo(db *DB, model interface{}, stmt *Statement, modelIsMongo bool) {
 				}
 			}
 		}
-
-		db.DryRun = false
 	}
 }
 
