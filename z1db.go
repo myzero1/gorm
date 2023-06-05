@@ -34,7 +34,17 @@ func Z1ToMongo(db *DB, model interface{}, stmt *Statement, modelIsMongo bool) {
 		if strings.HasPrefix(sql, `SELECT `) {
 			if !strings.Contains(sql, `count(`) {
 				isCount = false
-				if !strings.Contains(sql, ` LIMIT `) {
+			}
+
+			{
+				b, err := json.Marshal(stmt.Dest)
+				if err != nil {
+					db.Error = err
+					return
+				}
+				destStr := string(b)
+				if !strings.HasPrefix(destStr, `[{"`) {
+					isMany = false
 					sql = sql + ` LIMIT 1`
 				}
 			}
