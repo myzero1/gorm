@@ -6,7 +6,6 @@ import (
 
 	"gitee.com/myzero1/gotool/z1mongo"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"gopkg.in/mgo.v2/bson"
 )
 
 func Z1ToDryRun(db *DB, modelIsMongo bool) {
@@ -74,12 +73,12 @@ func Z1ToMongo(db *DB, model interface{}, stmt *Statement, modelIsMongo bool) {
 		if action == `select` {
 			if isMany {
 				db.RowsAffected = int64(len(ret))
-				b, err := bson.Marshal(ret)
+				b, err := json.Marshal(ret)
 				if err != nil {
 					db.Error = err
 					return
 				}
-				err = bson.Unmarshal(b, model)
+				err = json.Unmarshal(b, stmt.Dest)
 				if err != nil {
 					db.Error = err
 					return
@@ -87,12 +86,12 @@ func Z1ToMongo(db *DB, model interface{}, stmt *Statement, modelIsMongo bool) {
 			} else {
 				if len(ret) > 0 {
 					db.RowsAffected = 1
-					b, err := bson.Marshal(ret[0])
+					b, err := json.Marshal(ret[0])
 					if err != nil {
 						db.Error = err
 						return
 					}
-					err = bson.Unmarshal(b, stmt.Dest)
+					err = json.Unmarshal(b, stmt.Dest)
 					if err != nil {
 						db.Error = err
 						return
