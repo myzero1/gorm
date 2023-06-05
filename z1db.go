@@ -64,6 +64,11 @@ func Z1ToMongo(db *DB, model interface{}, stmt *Statement, modelIsMongo bool) {
 
 		db.RowsAffected = total
 
+		if isCount {
+			stmt.Dest = &total
+			return
+		}
+
 		if action == `select` {
 			if isMany {
 				db.RowsAffected = int64(len(ret))
