@@ -20,7 +20,9 @@ func Z1ToDryRun(db *DB, modelIsMongo bool) {
 
 func Z1ToMongo(db *DB, model interface{}, stmt *Statement, modelIsMongo bool) {
 	defer func() {
-		db.DryRun = false
+		if modelIsMongo {
+			db.DryRun = false
+		}
 	}()
 
 	// {
