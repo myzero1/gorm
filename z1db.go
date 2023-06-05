@@ -47,7 +47,8 @@ func Z1ToMongo(db *DB, model interface{}, stmt *Statement, modelIsMongo bool) {
 				return
 			}
 			destStr := string(b)
-			if strings.HasPrefix(destStr, `[{"`) {
+			// log.Println(`------------destStr----------`, destStr)
+			if strings.HasPrefix(destStr, `[`) {
 				isMany = true
 			} else {
 				sql = sql + ` LIMIT 1`
