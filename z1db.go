@@ -32,7 +32,7 @@ func Z1ToMongo(db *DB, model interface{}, stmt *Statement, modelIsMongo bool) {
 	if modelIsMongo {
 		sql := db.Dialector.Explain(stmt.SQL.String(), stmt.Vars...)
 		isCount := false
-		isMany := false
+		z1ret := stmt.Dest
 
 		// log.Println(`------sql--1--`, sql)
 
@@ -41,23 +41,23 @@ func Z1ToMongo(db *DB, model interface{}, stmt *Statement, modelIsMongo bool) {
 				isCount = true
 			}
 
-			b, err := json.Marshal(stmt.Dest)
-			if err != nil {
-				db.Error = err
-				return
-			}
-			destStr := string(b)
-			// log.Println(`------------destStr----------`, destStr)
-			if strings.HasPrefix(destStr, `[`) {
-				isMany = true
-			} else {
-				sql = sql + ` LIMIT 1`
+			{
+				b, err := json.Marshal(stmt.Dest)
+				if err != nil {
+					db.Error = err
+					return
+				}
+				destStr := string(b)
+				// log.Println(`------------destStr----------`, destStr)
+				if !strings.HasPrefix(destStr, `[`) {
+					sql = sql + ` LIMIT 1`
+				}
 			}
 		}
 
 		// log.Println(`------sql--2--`, sql)
 
-		ret, total, action, err := z1mongo.Sql2Mongo(sql, isCount)
+		_, total, _, err := z1mongo.Sql2Mongo(sql, isCount, z1ret)
 
 		if err != nil {
 			db.Error = err
@@ -69,36 +69,6 @@ func Z1ToMongo(db *DB, model interface{}, stmt *Statement, modelIsMongo bool) {
 		if isCount {
 			stmt.Dest = &total
 			return
-		}
-
-		if action == `select` {
-			if isMany {
-				db.RowsAffected = int64(len(ret))
-				b, err := json.Marshal(ret)
-				if err != nil {
-					db.Error = err
-					return
-				}
-				err = json.Unmarshal(b, stmt.Dest)
-				if err != nil {
-					db.Error = err
-					return
-				}
-			} else {
-				if len(ret) > 0 {
-					db.RowsAffected = 1
-					b, err := json.Marshal(ret[0])
-					if err != nil {
-						db.Error = err
-						return
-					}
-					err = json.Unmarshal(b, stmt.Dest)
-					if err != nil {
-						db.Error = err
-						return
-					}
-				}
-			}
 		}
 	}
 }
